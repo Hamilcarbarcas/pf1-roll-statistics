@@ -1,0 +1,13 @@
+<div class="prs-layout{{#unless reports.length}} prs-no-nav{{/unless}}">
+  {{#if reports.length}}
+  <nav class="prs-nav">
+    {{#each reports}}
+    <button type="button" class="prs-nav-item{{#if active}} active{{/if}}" data-action="selectReport" data-report="{{id}}">{{label}}</button>
+    {{/each}}
+  </nav>
+  {{/if}}
+  <section class="prs-main">
+    <header class="prs-controls">{{{controls}}}</header>
+    <div class="prs-body">{{{body}}}</div>
+  </section>
+</div>

@@ -16,6 +16,9 @@
   "esmodules": [
     "scripts/module.mjs"
   ],
+  "styles": [
+    "styles/stats.css"
+  ],
   "languages": [
     {
       "lang": "en",
@@ -23,6 +26,7 @@
       "path": "lang/en.json"
     }
   ],
+  "socket": true,
   "relationships": {
     "systems": [
       {

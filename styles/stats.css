@@ -1,0 +1,249 @@
+/* Every selector is scoped to the module's windows. */
+
+.pf1-roll-statistics {
+  --prs-good: #2f9e44;
+  --prs-bad: #d9480f;
+  --prs-muted: color-mix(in srgb, currentColor 55%, transparent);
+  --prs-line: color-mix(in srgb, currentColor 18%, transparent);
+  --prs-accent: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.pf1-roll-statistics .window-content {
+  padding: 0;
+  overflow: hidden;
+}
+
+.pf1-roll-statistics .prs-layout {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.pf1-roll-statistics .prs-layout.prs-no-nav {
+  grid-template-columns: 1fr;
+}
+
+.pf1-roll-statistics .prs-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border-right: 1px solid var(--prs-line);
+  overflow-y: auto;
+}
+
+.pf1-roll-statistics .prs-nav-item {
+  text-align: left;
+  justify-content: flex-start;
+  background: none;
+  border: 1px solid transparent;
+}
+
+.pf1-roll-statistics .prs-nav-item.active {
+  background: var(--prs-accent);
+  border-color: var(--prs-line);
+  font-weight: bold;
+}
+
+.pf1-roll-statistics .prs-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pf1-roll-statistics .prs-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--prs-line);
+}
+
+.pf1-roll-statistics .prs-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pf1-roll-statistics .prs-controls select {
+  width: auto;
+}
+
+.pf1-roll-statistics .prs-controls input[type="number"] {
+  width: 4em;
+}
+
+.pf1-roll-statistics .prs-spacer {
+  flex: 1;
+}
+
+.pf1-roll-statistics .prs-btn {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.pf1-roll-statistics .prs-body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+}
+
+.pf1-roll-statistics .prs-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 8px;
+}
+
+.pf1-roll-statistics .prs-table th,
+.pf1-roll-statistics .prs-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--prs-line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pf1-roll-statistics .prs-table thead th {
+  font-weight: bold;
+  border-bottom-width: 2px;
+}
+
+.pf1-roll-statistics .prs-table tbody th {
+  font-weight: normal;
+}
+
+.pf1-roll-statistics .prs-table .prs-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pf1-roll-statistics .prs-n {
+  color: var(--prs-muted);
+  font-size: 0.85em;
+}
+
+.pf1-roll-statistics .prs-good {
+  color: var(--prs-good);
+  font-weight: bold;
+}
+
+.pf1-roll-statistics .prs-bad {
+  color: var(--prs-bad);
+  font-weight: bold;
+}
+
+.pf1-roll-statistics .prs-click {
+  cursor: pointer;
+}
+
+.pf1-roll-statistics .prs-click:hover,
+.pf1-roll-statistics .prs-selected {
+  background: var(--prs-accent);
+}
+
+.pf1-roll-statistics .prs-divider td {
+  padding-top: 8px;
+  color: var(--prs-muted);
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pf1-roll-statistics .prs-expected-row th,
+.pf1-roll-statistics .prs-expected-row td {
+  color: var(--prs-muted);
+  font-style: italic;
+}
+
+.pf1-roll-statistics .prs-empty,
+.pf1-roll-statistics .prs-hint {
+  color: var(--prs-muted);
+}
+
+.pf1-roll-statistics .prs-empty {
+  padding: 20px;
+  text-align: center;
+}
+
+.pf1-roll-statistics .prs-hint {
+  font-size: 0.85em;
+  margin: 4px 0;
+}
+
+.pf1-roll-statistics .prs-fortune {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pf1-roll-statistics .prs-fortune-part {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.pf1-roll-statistics .prs-fortune-part h3,
+.pf1-roll-statistics .prs-histogram h3 {
+  margin: 0 0 4px;
+  font-size: 1.05em;
+  border: none;
+}
+
+.pf1-roll-statistics .prs-histogram {
+  margin-top: 12px;
+}
+
+.pf1-roll-statistics .prs-bars {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 160px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--prs-line);
+}
+
+.pf1-roll-statistics .prs-bar-wrap {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.pf1-roll-statistics .prs-bar {
+  width: 100%;
+  background: color-mix(in srgb, currentColor 40%, transparent);
+  border-radius: 2px 2px 0 0;
+}
+
+.pf1-roll-statistics .prs-bar-label {
+  position: absolute;
+  bottom: -18px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.75em;
+  color: var(--prs-muted);
+}
+
+.pf1-roll-statistics .prs-expected {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed var(--prs-bad);
+  pointer-events: auto;
+}
+
+.pf1-roll-statistics .prs-shared {
+  padding: 2px 0;
+}
+
+.pf1-roll-statistics-share {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
