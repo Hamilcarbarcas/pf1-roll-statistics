@@ -1,0 +1,42 @@
+{
+  "id": "pf1-roll-statistics",
+  "title": "PF1 Roll Statistics",
+  "description": "Tracks dice rolls for Pathfinder 1e — per die, per action, and success rates — and reports them per session and over the long term.",
+  "authors": [
+    {
+      "name": "Hamilcarbarcas"
+    }
+  ],
+  "version": "0.0.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "persistentStorage": true,
+  "esmodules": [
+    "scripts/module.mjs"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "pf1",
+        "type": "system",
+        "compatibility": {
+          "minimum": "11"
+        }
+      }
+    ]
+  },
+  "url": "https://github.com/Hamilcarbarcas/pf1-roll-statistics",
+  "readme": "https://github.com/Hamilcarbarcas/pf1-roll-statistics/blob/main/README.md",
+  "manifest": "https://github.com/Hamilcarbarcas/pf1-roll-statistics/releases/latest/download/module.json",
+  "download": "https://github.com/Hamilcarbarcas/pf1-roll-statistics/releases/download/v0.0.0/module.zip",
+  "license": "LICENSE"
+}

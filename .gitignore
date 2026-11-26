@@ -1,0 +1,12 @@
+# Recorded roll data lives in the module's persistent storage folder. The live
+# module directory is a symlink into this repo, so it lands here.
+storage/
+
+# The design record is kept locally, not published with the module.
+DESIGN*.md
+
+# The doc-edit log is kept locally, not published with the module.
+README-EDITS.md
+
+# The change-request log is kept locally, not published with the module.
+CHANGE-REQUESTS.md
