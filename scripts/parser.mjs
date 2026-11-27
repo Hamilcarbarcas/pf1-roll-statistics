@@ -38,11 +38,23 @@ function toRoll(data) {
   }
 }
 
+/** Disposition of the rolling token, or of the actor's prototype token when the token is unknown. */
+function disposition(sceneId, tokenId, actor) {
+  let token = null;
+  if (tokenId) {
+    token = sceneId
+      ? game.scenes.get(sceneId)?.tokens.get(tokenId)
+      : game.scenes.find((s) => s.tokens.has(tokenId))?.tokens.get(tokenId);
+  }
+  const d = token?.disposition ?? actor?.prototypeToken?.disposition;
+  return Number.isFinite(d) ? d : null;
+}
+
 /** Who and as whom, shared by every event from one source. */
-function baseFields(messageId, timestamp, userId, actorId, tokenId) {
+function baseFields(messageId, timestamp, userId, actorId, tokenId, sceneId = null) {
   const user = game.users.get(userId);
   const actor = actorId ? game.actors.get(actorId) : null;
-  return {
+  const base = {
     m: messageId,
     t: timestamp,
     u: userId ?? null,
@@ -51,6 +63,9 @@ function baseFields(messageId, timestamp, userId, actorId, tokenId) {
     tk: tokenId ?? null,
     pc: actor?.hasPlayerOwner ?? false,
   };
+  const dp = disposition(sceneId, tokenId, actor);
+  if (dp !== null) base.dp = dp;
+  return base;
 }
 
 function makeEvent(base, id, c, facts, extra = {}) {
@@ -175,7 +190,7 @@ function parsePlainRolls(msg, base) {
 export function parseMessage(msg) {
   const userId = msg.author?.id;
   if (!userId) return [];
-  const base = baseFields(msg.id, msg.timestamp, userId, msg.speaker?.actor, msg.speaker?.token);
+  const base = baseFields(msg.id, msg.timestamp, userId, msg.speaker?.actor, msg.speaker?.token, msg.speaker?.scene);
   if (msg.type === "action") return parseActionCard(msg, base);
   if (msg.rolls?.length) return parsePlainRolls(msg, base);
   return [];

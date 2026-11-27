@@ -98,12 +98,19 @@
   margin: 0 0 8px;
 }
 
+/* Values and their headers are centred; only the name column (row headers) is left-aligned. */
 .pf1-roll-statistics .prs-table th,
 .pf1-roll-statistics .prs-table td {
   padding: 3px 8px;
   border-bottom: 1px solid var(--prs-line);
-  text-align: left;
+  text-align: center;
   white-space: nowrap;
+}
+
+.pf1-roll-statistics .prs-table th.prs-name,
+.pf1-roll-statistics .prs-table tbody th[scope="row"],
+.pf1-roll-statistics .prs-table .prs-divider td {
+  text-align: left;
 }
 
 .pf1-roll-statistics .prs-table thead th {
@@ -116,7 +123,6 @@
 }
 
 .pf1-roll-statistics .prs-table .prs-num {
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
@@ -150,12 +156,6 @@
   font-size: 0.85em;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.pf1-roll-statistics .prs-expected-row th,
-.pf1-roll-statistics .prs-expected-row td {
-  color: var(--prs-muted);
-  font-style: italic;
 }
 
 .pf1-roll-statistics .prs-empty,
@@ -246,4 +246,67 @@
   flex-direction: column;
   gap: 4px;
   padding: 4px 0;
+}
+
+/* Per-actor sections: fixed layout so every actor's table has the same column widths. */
+.pf1-roll-statistics .prs-actor {
+  margin-bottom: 14px;
+}
+
+.pf1-roll-statistics .prs-actor-head {
+  margin: 0 0 4px;
+  font-size: 1.1em;
+  border: none;
+}
+
+.pf1-roll-statistics .prs-table.prs-fixed {
+  table-layout: fixed;
+}
+
+.pf1-roll-statistics .prs-table.prs-fixed th.prs-name {
+  width: 28%;
+}
+
+.pf1-roll-statistics .prs-table.prs-fixed th,
+.pf1-roll-statistics .prs-table.prs-fixed td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Checklist dropdown. */
+.pf1-roll-statistics .prs-multi {
+  position: relative;
+}
+
+.pf1-roll-statistics .prs-multi > summary {
+  cursor: pointer;
+  padding: 2px 8px;
+  border: 1px solid var(--prs-line);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.pf1-roll-statistics .prs-multi-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 2px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--prs-line);
+  border-radius: 3px;
+  background: var(--color-cool-5, #1f1f24);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 40%);
+}
+
+/* Report list group heading (not clickable) and its indented items. */
+.pf1-roll-statistics .prs-nav-group {
+  padding: 6px 8px 2px;
+  font-weight: bold;
+}
+
+.pf1-roll-statistics .prs-nav-item.prs-indent {
+  margin-left: 14px;
 }

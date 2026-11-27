@@ -31,17 +31,10 @@ function pct(v, digits = 1) {
 
 const n = (count) => `<span class="prs-n">(${count})</span>`;
 
-/** Colour only when the deviation is beyond chance (|z| ≥ 1). §6.4 */
-function luckClass(z) {
-  if (!Number.isFinite(z)) return "";
-  if (z >= 1) return "prs-good";
-  if (z <= -1) return "prs-bad";
-  return "";
-}
-
-function rate(outcome) {
-  if (!outcome?.known) return DASH;
-  return `${pct(outcome.rate)} <span class="prs-n">${esc(L("OfKnown", { n: outcome.known }))}</span>`;
+/** Green above expected, red below. §6.5 */
+function luckClass(deviation) {
+  if (!Number.isFinite(deviation) || deviation === 0) return "";
+  return deviation > 0 ? "prs-good" : "prs-bad";
 }
 
 function meanCell(stat) {
@@ -140,26 +133,23 @@ function renderDice(result, { histogram: selected } = {}, byActor) {
     const cells = faces.map((f) => {
       const s = r.dice[f];
       if (!s) return `<td class="prs-num">${DASH}</td>`;
-      const tip = L("Tooltip.Die", { expected: num(s.expected), dev: signed(s.dev), z: num(s.z, 1) });
+      const tip = L("Tooltip.Die", { expected: num(s.expected), dev: signed(s.dev) });
       const active = selected?.key === r.key && selected?.faces === f ? " prs-selected" : "";
-      return `<td class="prs-num prs-click ${luckClass(s.z)}${active}" data-action="histogram"
+      return `<td class="prs-num prs-click ${luckClass(s.dev)}${active}" data-action="histogram"
         data-key="${esc(r.key)}" data-faces="${f}" data-tooltip="${esc(tip)}">${num(s.mean)} ${n(s.count)}</td>`;
     });
     return `<tr><th scope="row">${esc(name(r.key))}</th>${cells.join("")}</tr>`;
   };
   const sortByName = (rows) => [...rows].sort((a, b) => name(a.key).localeCompare(name(b.key)));
 
-  const head = `<tr><th>${esc(L(byActor ? "Col.Actor" : "Col.User"))}</th>${faces.map((f) => `<th class="prs-num">d${f}</th>`).join("")}</tr>`;
+  const head = `<tr><th class="prs-name">${esc(L(byActor ? "Col.Actor" : "Col.User"))}</th>${faces.map((f) => `<th class="prs-num">d${f}</th>`).join("")}</tr>`;
   const body = [
     ...sortByName(players).map(row),
     ...(gm.length ? [gmDivider(cols), ...sortByName(gm).map(row)] : []),
   ].join("");
-  const expected = `<tr class="prs-expected-row"><th scope="row">${esc(L("Col.Expected"))}</th>${faces
-    .map((f) => `<td class="prs-num">${num((f + 1) / 2)}</td>`)
-    .join("")}</tr>`;
 
   const sel = selected && [...players, ...gm].find((r) => r.key === selected.key);
-  return `<table class="prs-table"><thead>${head}</thead><tbody>${body}${expected}</tbody></table>
+  return `<table class="prs-table"><thead>${head}</thead><tbody>${body}</tbody></table>
     ${sel ? histogram(sel, selected.faces, name(sel.key)) : `<p class="prs-hint">${esc(L("Hint.Histogram"))}</p>`}`;
 }
 
@@ -172,14 +162,14 @@ function renderFortune(result) {
   const hasAny = (side) => side.d20.length || side.luck.length || side.naturals.length;
   if (!hasAny(players) && !hasAny(gm)) return empty();
 
-  const table = (title, head, side, rowFn) => {
+  const table = (title, head, side, rowFn, nameCol) => {
     const cols = head.length;
     const rows = [
       ...side(players).map((r) => rowFn(r, true)),
       ...(side(gm).length ? [gmDivider(cols), ...side(gm).map((r) => rowFn(r, false))] : []),
     ];
     return `<section class="prs-fortune-part"><h3>${esc(L(title))}</h3>
-      <table class="prs-table"><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <table class="prs-table"><thead><tr>${head.map((h, i) => `<th${i === nameCol ? ' class="prs-name"' : ""}>${h}</th>`).join("")}</tr></thead>
       <tbody>${rows.join("") || `<tr><td colspan="${cols}">${DASH}</td></tr>`}</tbody></table></section>`;
   };
 
@@ -188,15 +178,17 @@ function renderFortune(result) {
     ["#", esc(L("Col.User")), esc(L("Col.AvgD20")), esc(L("Col.Diff"))],
     (s) => s.d20,
     (r, ranked) => `<tr><td>${ranked ? r.rank : ""}</td><th scope="row">${esc(userName(r.user))}</th>
-      <td class="prs-num ${luckClass(r.z)}">${num(r.mean)} ${n(r.count)}</td><td class="prs-num">${signed(r.dev)}</td></tr>`,
+      <td class="prs-num ${luckClass(r.dev)}">${num(r.mean)} ${n(r.count)}</td><td class="prs-num">${signed(r.dev)}</td></tr>`,
+    1,
   );
   const luck = table(
     "Fortune.Luck",
     ["#", esc(L("Col.User")), `<span data-tooltip="${esc(L("Tooltip.Luck"))}">${esc(L("Col.Luck"))}</span>`, esc(L("Col.Total")), esc(L("Col.Dice"))],
     (s) => s.luck,
     (r, ranked) => `<tr><td>${ranked ? r.rank : ""}</td><th scope="row">${esc(userName(r.user))}</th>
-      <td class="prs-num ${luckClass(r.z)}">${signed(r.mean * 100, 1)}%</td><td class="prs-num">${signed(r.total, 1)}</td>
+      <td class="prs-num ${luckClass(r.mean)}">${signed(r.mean * 100, 1)}%</td><td class="prs-num">${signed(r.total, 1)}</td>
       <td class="prs-num">${r.count}</td></tr>`,
+    1,
   );
   const nats = table(
     "Fortune.Naturals",
@@ -206,6 +198,7 @@ function renderFortune(result) {
       <td class="prs-num">${r.n20} <span class="prs-n">${pct(r.n20Rate, 0)}</span></td>
       <td class="prs-num">${r.n1} <span class="prs-n">${pct(r.n1Rate, 0)}</span></td>
       <td class="prs-num">${r.count}</td></tr>`,
+    0,
   );
   return `<div class="prs-fortune">${d20}${luck}${nats}</div>`;
 }
@@ -214,37 +207,59 @@ function renderFortune(result) {
 /*  Attacks                                     */
 /* -------------------------------------------- */
 
+/** One heading + table per actor; every table shares the same header so columns line up. */
+function actorSections(actors, thead, row) {
+  return actors
+    .map((a) => `<section class="prs-actor">
+    <h3 class="prs-actor-head">${esc(actorName(a.actorId))}
+      <span class="prs-n">${esc(L(`ActorClass.${a.class}`))}</span></h3>
+    <table class="prs-table prs-fixed">${thead}<tbody>${a.rows.map((r) => row(r, a)).join("")}</tbody></table>
+  </section>`)
+    .join("");
+}
+
+function headerRow(labels) {
+  return `<thead><tr>${labels.map((h, i) => `<th${i === 0 ? ' class="prs-name"' : ""}>${esc(h)}</th>`).join("")}</tr></thead>`;
+}
+
+/** Percentage only; the known-outcome count goes in the tooltip. */
+function rateCell(outcome) {
+  if (!outcome?.known) return `<td class="prs-num">${DASH}</td>`;
+  return `<td class="prs-num" data-tooltip="${esc(L("OfKnown", { n: outcome.known }))}">${pct(outcome.rate)}</td>`;
+}
+
 function renderAttacks(result) {
-  const { rows, critMode } = result.data;
-  if (!rows.length) return empty();
-  const separate = critMode !== "combined";
-  const anyHealing = rows.some((r) => r.healing?.count);
+  const { actors } = result.data;
+  if (!actors.length) return empty();
+  // Same columns for every actor so the stacked tables line up.
+  const anyHealing = actors.some((a) => a.rows.some((r) => r.healing?.count));
   const head = [
-    L("Col.Item"), L("Col.Attacks"), L("Col.D20"), L("Col.AvgTotal"), L("Col.Hit"), L("Col.Threats"), L("Col.Confirm"),
-    L(separate ? "Col.Damage" : "Col.DamageCombined"),
-    ...(separate ? [L("Col.CritDamage")] : []),
+    L("Col.Item"), L("Col.Attacks"), L("Col.AvgRoll"), L("Col.AvgHit"), L("Col.Hit"), L("Col.Threats"),
+    L("Col.Confirmed"), L("Col.Damage"),
     ...(anyHealing ? [L("Col.Healing")] : []),
   ];
-  const body = rows
-    .map((r) => {
-      const atk = r.attacks > 0;
-      const cells = [
-        `<th scope="row">${esc(itemLabel(r))}</th>`,
-        `<td class="prs-num">${atk ? r.attacks : DASH}</td>`,
-        `<td class="prs-num">${atk ? num(r.natural.mean) : DASH}</td>`,
-        `<td class="prs-num">${atk ? num(r.total.mean) : DASH}</td>`,
-        `<td class="prs-num">${atk ? rate(r.hit) : DASH}</td>`,
-        `<td class="prs-num">${atk ? `${r.threats.threats} <span class="prs-n">${pct(r.threats.rate, 0)}</span>` : DASH}</td>`,
-        `<td class="prs-num">${atk ? rate(r.confirm) : DASH}</td>`,
-        `<td class="prs-num">${meanCell(r.damage)}</td>`,
-        ...(separate ? [`<td class="prs-num">${meanCell(r.critDamage)}</td>`] : []),
-        ...(anyHealing ? [`<td class="prs-num">${meanCell(r.healing)}</td>`] : []),
-      ];
-      return `<tr>${cells.join("")}</tr>`;
-    })
-    .join("");
-  return `<table class="prs-table"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>
-    <tbody>${body}</tbody></table><p class="prs-hint">${esc(L("Hint.Attacks"))}</p>`;
+  const thead = headerRow(head);
+
+  const row = (r) => {
+    const atk = r.attacks > 0;
+    const confirmed = atk && r.confirm.known
+      ? `<td class="prs-num" data-tooltip="${esc(L("OfKnown", { n: r.confirm.known }))}">${r.confirm.success}</td>`
+      : `<td class="prs-num">${DASH}</td>`;
+    const cells = [
+      `<th scope="row">${esc(itemLabel(r))}</th>`,
+      `<td class="prs-num">${atk ? r.attacks : DASH}</td>`,
+      `<td class="prs-num">${atk ? num(r.natural.mean) : DASH}</td>`,
+      `<td class="prs-num">${atk ? num(r.total.mean) : DASH}</td>`,
+      atk ? rateCell(r.hit) : `<td class="prs-num">${DASH}</td>`,
+      `<td class="prs-num">${atk ? `${r.threats.threats} <span class="prs-n">${pct(r.threats.rate, 0)}</span>` : DASH}</td>`,
+      confirmed,
+      `<td class="prs-num">${meanCell(r.damage)}</td>`,
+      ...(anyHealing ? [`<td class="prs-num">${meanCell(r.healing)}</td>`] : []),
+    ];
+    return `<tr>${cells.join("")}</tr>`;
+  };
+
+  return `${actorSections(actors, thead, row)}<p class="prs-hint">${esc(L("Hint.Attacks"))}</p>`;
 }
 
 /* -------------------------------------------- */
@@ -254,19 +269,15 @@ function renderAttacks(result) {
 const CHECK_ORDER = ["save", "init", "skill", "ability", "cl", "concentration", "bab"];
 
 function renderChecks(result) {
-  const { rows, actorId } = result.data;
-  if (!rows.length) return empty();
-  const sorted = [...rows].sort(
-    (a, b) => CHECK_ORDER.indexOf(a.category) - CHECK_ORDER.indexOf(b.category) || b.rolls - a.rolls,
-  );
-  const head = [L("Col.Check"), L("Col.Rolls"), L("Col.D20"), L("Col.AvgTotal"), L("Col.Success")];
-  const body = sorted
-    .map((r) => `<tr><th scope="row">${esc(checkLabel(r.category, r.sub, actorId))}</th>
+  const { actors } = result.data;
+  if (!actors.length) return empty();
+  const order = (r) => CHECK_ORDER.indexOf(r.category);
+  const thead = headerRow([L("Col.Check"), L("Col.Rolls"), L("Col.AvgRoll"), L("Col.AvgTotal"), L("Col.Success")]);
+  const row = (r, a) => `<tr><th scope="row">${esc(checkLabel(r.category, r.sub, a.actorId))}</th>
       <td class="prs-num">${r.rolls}</td><td class="prs-num">${num(r.natural.mean)}</td>
-      <td class="prs-num">${num(r.total.mean)}</td><td class="prs-num">${rate(r.outcome)}</td></tr>`)
-    .join("");
-  return `<table class="prs-table"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>
-    <tbody>${body}</tbody></table>`;
+      <td class="prs-num">${num(r.total.mean)}</td>${rateCell(r.outcome)}</tr>`;
+  const sorted = actors.map((a) => ({ ...a, rows: [...a.rows].sort((x, y) => order(x) - order(y) || y.rolls - x.rolls) }));
+  return actorSections(sorted, thead, row);
 }
 
 /* -------------------------------------------- */

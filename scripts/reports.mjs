@@ -1,4 +1,5 @@
 import { aggregate, buildContext } from "./engine.mjs";
+import { ACTOR_CLASSES, classifyActors } from "./actor-class.mjs";
 import { loadScope } from "./loader.mjs";
 
 /**
@@ -13,9 +14,10 @@ const registry = new Map();
  * @param {string} def.id
  * @param {string} def.label           Localization key.
  * @param {boolean} [def.basic=false]  Always on, visible to everyone.
- * @param {boolean} [def.needsActor=false]  Scoped to one actor (params.actorId); runReport picks a default.
+ * @param {boolean} [def.multiActor=false]  Covers the actors in params.actorClasses (§6.2); the actor filter applies to its events.
  * @param {"all"|"gm"|"owners"} [def.visibility="gm"]  Default for non-basic reports.
  * @param {object} [def.params]        Default parameters.
+ * @param {{group: string, label: string}} [def.nav]  Show under a non-clickable group heading in the window's list.
  * @param {(events: object[], ctx: object, params: object) => object} def.compute
  */
 export function registerReport(def) {
@@ -40,8 +42,8 @@ const COMMON_PARAMS = { scope: { type: "day" }, includeBackfill: true };
  * @param {object} [params]
  * @param {object} [options]
  * @param {{days: string[], events: object[]}} [options.loaded]  Events already loaded for params.scope.
- * @param {(actorId: string) => boolean} [options.actorFilter]  Limits the actors offered (and chosen).
- * @returns {Promise<{id: string, params: object, days: string[], actors: string[], data: object}>}
+ * @param {(actorId: string) => boolean} [options.actorFilter]  Limits which actors a multi-actor report covers.
+ * @returns {Promise<{id: string, params: object, days: string[], data: object}>}
  */
 export async function runReport(id, params = {}, { loaded, actorFilter } = {}) {
   const def = getReport(id);
@@ -49,13 +51,8 @@ export async function runReport(id, params = {}, { loaded, actorFilter } = {}) {
   let { days, events } = loaded ?? (await loadScope(p.scope));
   if (p.includeBackfill === false) events = events.filter((e) => !e.bf);
 
-  let actors = [...new Set(events.map((e) => e.a).filter(Boolean))];
-  if (actorFilter) actors = actors.filter(actorFilter);
-  if (def.needsActor && !actors.includes(p.actorId)) {
-    const own = game.user.character?.id;
-    p.actorId = actors.includes(own) ? own : (actors[0] ?? null);
-  }
-  return { id, params: p, days, actors, data: def.compute(events, buildContext(events), p) };
+  if (def.multiActor && actorFilter) events = events.filter((e) => e.a && actorFilter(e.a));
+  return { id, params: p, days, data: def.compute(events, buildContext(events), p) };
 }
 
 /* -------------------------------------------- */
@@ -100,18 +97,20 @@ function diceAverages(byActor) {
 }
 
 registerReport({
-  id: "diceUsers",
-  label: "PF1_ROLL_STATISTICS.Report.DiceUsers",
-  basic: true,
+  id: "diceActors",
+  label: "PF1_ROLL_STATISTICS.Report.DiceActors",
+  nav: { group: "PF1_ROLL_STATISTICS.Nav.Dice", label: "PF1_ROLL_STATISTICS.Nav.Actors" },
   params: { activeOnly: false },
-  compute: diceAverages(false),
+  compute: diceAverages(true),
 });
 
 registerReport({
-  id: "diceActors",
-  label: "PF1_ROLL_STATISTICS.Report.DiceActors",
+  id: "diceUsers",
+  label: "PF1_ROLL_STATISTICS.Report.DiceUsers",
+  nav: { group: "PF1_ROLL_STATISTICS.Nav.Dice", label: "PF1_ROLL_STATISTICS.Nav.Users" },
+  basic: true,
   params: { activeOnly: false },
-  compute: diceAverages(true),
+  compute: diceAverages(false),
 });
 
 /* -------------------------------------------- */
@@ -178,19 +177,41 @@ registerReport({
 const ATTACK_CATEGORIES = new Set(["attack", "critConfirm", "damage", "critDamage", "healing"]);
 const is = (c) => (e) => e.c === c;
 
+/**
+ * Split aggregate rows keyed "<actorId>|..." into per-actor sections, in actor-class order.
+ * @param {Map<string, object>} rows
+ * @param {Map<string, object>} info   row key → descriptive fields
+ * @param {Map<string, string>} classes
+ * @param {(a: object, b: object) => number} rowSort
+ */
+function sectionsByActor(rows, info, classes, rowSort) {
+  const byActor = new Map();
+  for (const [key, r] of rows) {
+    const actorId = key.split("|")[0];
+    let section = byActor.get(actorId);
+    if (!section) byActor.set(actorId, (section = { actorId, class: classes.get(actorId), rows: [] }));
+    section.rows.push({ key, ...info.get(key), ...r });
+  }
+  const sections = [...byActor.values()];
+  for (const sec of sections) sec.rows.sort(rowSort);
+  sections.sort((a, b) => ACTOR_CLASSES.indexOf(a.class) - ACTOR_CLASSES.indexOf(b.class));
+  return sections;
+}
+
 registerReport({
   id: "attacks",
   label: "PF1_ROLL_STATISTICS.Report.Attacks",
-  needsActor: true,
-  params: { actorId: null, critMode: "separate" },
+  multiActor: true,
+  params: { actorClasses: ["pc"] },
   compute(events, ctx, p) {
-    const actorId = p.actorId;
+    const wanted = new Set(p.actorClasses ?? []);
+    const classes = classifyActors(events);
     const items = new Map();
     const rows = aggregate(events, {
       ctx,
-      filter: (e) => e.a === actorId && ATTACK_CATEGORIES.has(e.c),
+      filter: (e) => e.a && ATTACK_CATEGORIES.has(e.c) && wanted.has(classes.get(e.a)),
       groupBy: (e) => {
-        const key = `${e.it?.n ?? ""}|${e.it?.an ?? ""}`;
+        const key = `${e.a}|${e.it?.n ?? ""}|${e.it?.an ?? ""}`;
         if (!items.has(key)) items.set(key, { name: e.it?.n ?? null, action: e.it?.an ?? null, actionType: e.it?.at ?? null });
         return key;
       },
@@ -201,16 +222,12 @@ registerReport({
         hit: { metric: "outcome", filter: is("attack") },
         threats: "threats",
         confirm: { metric: "outcome", filter: is("critConfirm") },
-        damage: { metric: "damage", opts: { critMode: p.critMode } },
-        critDamage: { metric: "total", filter: is("critDamage") },
+        // Crit damage is always folded into its attack's damage.
+        damage: { metric: "damage", opts: { critMode: "combined" } },
         healing: { metric: "total", filter: is("healing") },
       },
     });
-    return {
-      actorId,
-      critMode: p.critMode,
-      rows: [...rows].map(([key, r]) => ({ key, ...items.get(key), ...r })).sort(byDesc((r) => r.attacks)),
-    };
+    return { actorClasses: [...wanted], actors: sectionsByActor(rows, items, classes, byDesc((r) => r.attacks)) };
   },
 });
 
@@ -223,22 +240,22 @@ const CHECK_CATEGORIES = new Set(["skill", "save", "ability", "init", "cl", "con
 registerReport({
   id: "checks",
   label: "PF1_ROLL_STATISTICS.Report.Checks",
-  needsActor: true,
-  params: { actorId: null },
+  multiActor: true,
+  params: { actorClasses: ["pc"] },
   compute(events, ctx, p) {
-    const actorId = p.actorId;
+    const wanted = new Set(p.actorClasses ?? []);
+    const classes = classifyActors(events);
+    const info = new Map();
     const rows = aggregate(events, {
       ctx,
-      filter: (e) => e.a === actorId && CHECK_CATEGORIES.has(e.c),
-      groupBy: (e) => `${e.c}:${e.k ?? ""}`,
+      filter: (e) => e.a && CHECK_CATEGORIES.has(e.c) && wanted.has(classes.get(e.a)),
+      groupBy: (e) => {
+        const key = `${e.a}|${e.c}|${e.k ?? ""}`;
+        if (!info.has(key)) info.set(key, { category: e.c, sub: e.k ?? null });
+        return key;
+      },
       metrics: { rolls: "count", natural: "natural", total: "total", outcome: "outcome" },
     });
-    return {
-      actorId,
-      rows: [...rows].map(([key, r]) => {
-        const [category, sub] = key.split(":");
-        return { key, category, sub: sub || null, ...r };
-      }).sort(byDesc((r) => r.rolls)),
-    };
+    return { actorClasses: [...wanted], actors: sectionsByActor(rows, info, classes, byDesc((r) => r.rolls)) };
   },
 });

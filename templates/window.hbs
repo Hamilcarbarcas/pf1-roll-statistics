@@ -2,7 +2,11 @@
   {{#if reports.length}}
   <nav class="prs-nav">
     {{#each reports}}
-    <button type="button" class="prs-nav-item{{#if active}} active{{/if}}" data-action="selectReport" data-report="{{id}}">{{label}}</button>
+    {{#if heading}}
+    <div class="prs-nav-group">{{label}}</div>
+    {{else}}
+    <button type="button" class="prs-nav-item{{#if indent}} prs-indent{{/if}}{{#if active}} active{{/if}}" data-action="selectReport" data-report="{{id}}">{{label}}</button>
+    {{/if}}
     {{/each}}
   </nav>
   {{/if}}

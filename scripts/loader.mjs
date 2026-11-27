@@ -11,8 +11,15 @@ export async function listDays() {
   const recorder = isRecorder();
   const index = recorder ? await store.index() : await store.readIndexFresh();
   const keys = new Set(Object.keys(index.days ?? {}));
-  // Unflushed days exist only in the recorder's memory.
-  if (recorder) for (const k of store.cachedKeys()) keys.add(k);
+  // Unflushed days exist only in the recorder's memory; a cached day can be empty.
+  if (recorder) {
+    for (const k of store.cachedKeys()) {
+      const day = await store.peek(k).catch(() => null);
+      if (!day) continue;
+      if (day.events.size) keys.add(k);
+      else keys.delete(k);
+    }
+  }
   return [...keys].sort();
 }
 

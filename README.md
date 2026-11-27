@@ -18,7 +18,7 @@ Tracks dice rolls for Pathfinder 1e and reports them per session and over the lo
   - [Dice Averages](#dice-averages)
   - [Fortune](#fortune)
   - [Attacks](#attacks)
-  - [Checks](#checks)
+  - [Checks and Saves](#checks-and-saves)
   - [Sharing and visibility](#sharing-and-visibility)
 - [Settings](#settings)
 
@@ -54,17 +54,23 @@ one session.
 Click the chart button in the **Journal Notes** scene controls. Pick a report on the left, and a
 session, the last few sessions, or lifetime at the top.
 
-Averages show how many rolls they cover in brackets. A value turns green or red only when it's
-further from average than chance alone would usually put it, so a handful of rolls stays neutral.
+Averages show how many rolls they cover in brackets. Green means above average, red means below.
 Hover over a number for the expected value.
 
-**Include recovered rolls** covers rolls picked up from the chat log after the fact. Their target
-AC was read when they were recovered, so hit rates for them are approximate.
+**Attacks** and **Checks and Saves** cover several characters at once. Tick which kinds to include:
+
+- **PCs:** characters assigned to a player.
+- **Player NPCs:** other characters a player owns, such as companions and summons.
+- **Other NPCs:** friendly and neutral creatures.
+- **Foes:** hostile and secret creatures.
+
+Each character gets its own heading and table.
 
 ### Dice Averages
 
-The average roll on each die size. **Users** has one row per player, with the GM below. **Actors**
-has one row per character or creature. Click a number to see how often each face came up.
+The average roll on each die size, in two reports listed under **Dice Averages**: **Users** has
+one row per player, with the GM below, and **Actors** has one row per character or creature.
+Click a number to see how often each face came up.
 
 ### Fortune
 
@@ -80,17 +86,17 @@ The GM is listed separately and isn't ranked against the players.
 
 ### Attacks
 
-One character's attacks, grouped by weapon or ability: average d20 and total, hit rate, threats
-and confirmation rate, and average damage. Crit damage can be shown separately or added into the
+Attacks grouped by weapon or ability: average roll, average hit (the attack total), hit rate,
+threats, confirmed crits, and average damage. A confirmed crit's extra damage is included in the
 damage. Healing abilities show average healing.
 
-Hit and confirm rates count only attacks made against exactly one target, compared with that
-target's AC (CMD for combat maneuvers).
+Hit rates and confirmed crits count only attacks made against exactly one target, compared with
+that target's AC (CMD for combat maneuvers). Hover over a rate to see how many attacks it covers.
 
-### Checks
+### Checks and Saves
 
-One character's saves, skills, ability checks, initiative and spellcasting checks: average d20,
-average total, and the success rate where the DC was known.
+Saves, skills, ability checks, initiative and spellcasting checks: average roll, average total,
+and the success rate where the DC was known.
 
 ### Sharing and visibility
 

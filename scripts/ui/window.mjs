@@ -3,7 +3,8 @@ import { listDays, loadScope } from "../loader.mjs";
 import { getReport, listReports, runReport } from "../reports.mjs";
 import { dayKey } from "../settings.mjs";
 import { actorFilter, canSee, getVisibility, setVisibility, VISIBILITY } from "../visibility.mjs";
-import { actorName, renderReport, scopeLabel, userName } from "./render.mjs";
+import { ACTOR_CLASSES } from "../actor-class.mjs";
+import { renderReport, scopeLabel, userName } from "./render.mjs";
 
 /**
  * Roll Statistics window. §6.4
@@ -19,6 +20,34 @@ const L = (key, data) =>
 
 const SOCKET = `module.${MODULE_ID}`;
 const WINDOW_ID = "pf1-roll-statistics";
+
+/** "PCs, Foes" — or "None" when nothing is ticked. */
+function classSummary(classes) {
+  const picked = ACTOR_CLASSES.filter((c) => classes.includes(c));
+  if (!picked.length) return L("ActorClass.none");
+  if (picked.length === ACTOR_CLASSES.length) return L("ActorClass.all");
+  return picked.map((c) => L(`ActorClass.${c}`)).join(", ");
+}
+
+/** Report list entries; grouped reports get one heading (not clickable) with their items indented below. */
+function navEntries(reports, activeId) {
+  const out = [];
+  const seen = new Set();
+  for (const r of reports) {
+    const group = r.nav?.group;
+    if (group && !seen.has(group)) {
+      seen.add(group);
+      out.push({ heading: true, label: game.i18n.localize(group) });
+    }
+    out.push({
+      id: r.id,
+      label: game.i18n.localize(r.nav?.label ?? r.label),
+      active: r.id === activeId,
+      indent: !!group,
+    });
+  }
+  return out;
+}
 
 function option(value, label, selected) {
   return `<option value="${esc(value)}"${selected ? " selected" : ""}>${esc(label)}</option>`;
@@ -49,6 +78,8 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   #cache = new Map();
   #histogram = null;
   #last = null;
+  /** Whether the actor-class dropdown is open, kept across re-renders. */
+  #classesOpen = false;
 
   get snapshot() {
     return this.options.snapshot ?? null;
@@ -85,12 +116,15 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
     const def = getReport(this.#reportId);
     const params = (this.#params[def.id] ??= {});
     params.scope ??= { type: "day" };
+    // A session scope without a day shows the most recent day that has rolls.
+    if (params.scope.type === "day" && !params.scope.day) {
+      params.scope = { type: "day", day: (await listDays()).at(-1) ?? dayKey(Date.now()) };
+    }
     let body;
     let result = null;
     try {
       const loaded = await this.#load(params.scope);
       result = await runReport(def.id, params, { loaded, actorFilter: actorFilter(def) });
-      if (def.needsActor) params.actorId = result.params.actorId;
       body = renderReport(result, { histogram: this.#histogram });
     } catch (err) {
       console.error(`${MODULE_ID} |`, err);
@@ -100,7 +134,7 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
 
     return {
       ...context,
-      reports: reports.map((r) => ({ id: r.id, label: game.i18n.localize(r.label), active: r.id === def.id })),
+      reports: navEntries(reports, def.id),
       controls: await this.#controls(def, params, result),
       body,
     };
@@ -110,7 +144,7 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
     const r = this.snapshot;
     const def = getReport(r.id);
     const parts = [game.i18n.localize(def.label), scopeLabel(r)];
-    if (r.params.actorId) parts.push(actorName(r.params.actorId));
+    if (r.params.actorClasses) parts.push(classSummary(r.params.actorClasses));
     return {
       reports: [],
       controls: `<div class="prs-shared">${esc(L("Shared.Header", { user: userName(r.from) }))}:
@@ -129,31 +163,22 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
       ${option("lifetime", L("Scope.Lifetime"), scope.type === "lifetime")}</select></label>`);
 
     if (scope.type === "day") {
-      const today = dayKey(Date.now());
-      const days = [...new Set([today, ...(await listDays())])].sort().reverse();
-      const current = scope.day ?? today;
-      out.push(`<select name="day">${days.map((d) => option(d, d, d === current)).join("")}</select>`);
+      const days = (await listDays()).reverse();
+      if (days.length) {
+        out.push(`<select name="day">${days.map((d) => option(d, d, d === scope.day)).join("")}</select>`);
+      }
     } else if (scope.type === "last") {
       out.push(`<input type="number" name="lastN" min="1" step="1" value="${scope.n ?? 3}">`);
     }
 
-    if (def.needsActor) {
-      const actors = (result?.actors ?? []).map((id) => ({ id, name: actorName(id) }));
-      actors.sort((a, b) => a.name.localeCompare(b.name));
-      out.push(`<label>${esc(L("Col.Actor"))}<select name="actorId">
-        ${actors.map((a) => option(a.id, a.name, a.id === params.actorId)).join("") || option("", "–", true)}</select></label>`);
+    if (def.multiActor) {
+      const chosen = new Set(params.actorClasses ?? def.params.actorClasses ?? []);
+      const boxes = ACTOR_CLASSES.map((c) => `<label class="prs-check">
+        <input type="checkbox" name="actorClass" value="${c}"${chosen.has(c) ? " checked" : ""}>
+        ${esc(L(`ActorClass.${c}`))}</label>`).join("");
+      out.push(`<details class="prs-multi"${this.#classesOpen ? " open" : ""}>
+        <summary>${esc(classSummary([...chosen]))}</summary><div class="prs-multi-list">${boxes}</div></details>`);
     }
-
-    if (def.id === "attacks") {
-      const mode = params.critMode ?? def.params.critMode;
-      out.push(`<label>${esc(L("Control.CritDamage"))}<select name="critMode">
-        ${option("separate", L("Control.CritSeparate"), mode === "separate")}
-        ${option("combined", L("Control.CritCombined"), mode === "combined")}</select></label>`);
-    }
-
-    out.push(`<label class="prs-check" data-tooltip="${esc(L("Tooltip.Backfill"))}">
-      <input type="checkbox" name="includeBackfill"${params.includeBackfill === false ? "" : " checked"}>
-      ${esc(L("Control.Backfill"))}</label>`);
 
     out.push(`<span class="prs-spacer"></span>`);
 
@@ -175,6 +200,7 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   _onRender(context, options) {
     super._onRender(context, options);
     this.element.querySelector(".prs-controls")?.addEventListener("change", (ev) => this.#onControlChange(ev));
+    this.element.querySelector(".prs-multi")?.addEventListener("toggle", (ev) => { this.#classesOpen = ev.target.open; });
   }
 
   async #onControlChange(event) {
@@ -198,14 +224,8 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
         params.scope = { type: "last", n: params.lastN };
         this.#histogram = null;
         break;
-      case "actorId":
-        params.actorId = el.value || null;
-        break;
-      case "critMode":
-        params.critMode = el.value;
-        break;
-      case "includeBackfill":
-        params.includeBackfill = el.checked;
+      case "actorClass":
+        params.actorClasses = [...this.element.querySelectorAll('input[name="actorClass"]:checked')].map((i) => i.value);
         break;
       case "visibility":
         await setVisibility(def, el.value);
