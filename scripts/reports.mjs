@@ -126,39 +126,49 @@ registerReport({
     const rows = aggregate(events, {
       ctx,
       groupBy: (e) => e.u,
+      // Fortune counts kept dice only; the dropped die of a roll-twice is ignored throughout. §6.3
       metrics: {
-        d20: { metric: "dice", opts: { faces: 20 } },
-        // Nat 20 / nat 1 count kept dice only; dropped dice still count toward the averages. §6.3
         kept: { metric: "dice", opts: { faces: 20, activeOnly: true } },
-        luck: "luck",
+        luck: { metric: "luck", opts: { activeOnly: true } },
       },
     });
 
     const build = (keys) => {
       const all = keys.map((u) => {
         const r = rows.get(u);
-        return { user: u, d20: r.d20[20] ?? null, kept: r.kept[20] ?? null, luck: r.luck };
+        return { user: u, kept: r.kept[20] ?? null, luck: r.luck };
       });
-      const withD20 = all.filter((r) => r.d20?.count);
       return {
-        d20: ranked(withD20
-          .map((r) => ({ user: r.user, mean: r.d20.mean, count: r.d20.count, dev: r.d20.dev, z: r.d20.z }))
-          .sort(byDesc((r) => r.mean))),
+        // d20 luck: each d20 scaled −1 (a 1) … +1 (a 20), like all-dice luck. §6.3
+        d20: ranked(all
+          .filter((r) => r.kept?.count)
+          .map((r) => {
+            const luck = (r.kept.mean - 10.5) / 9.5;
+            return { user: r.user, luck, total: luck * r.kept.count, count: r.kept.count, mean: r.kept.mean };
+          })
+          .sort(byDesc((r) => r.luck))),
         luck: ranked(all
           .filter((r) => r.luck.count)
-          .map((r) => ({ user: r.user, mean: r.luck.mean, total: r.luck.total, count: r.luck.count, z: r.luck.z }))
-          .sort(byDesc((r) => r.mean))),
-        naturals: all
+          .map((r) => ({ user: r.user, luck: r.luck.mean, total: r.luck.total, count: r.luck.count }))
+          .sort(byDesc((r) => r.luck))),
+        // Critical luck: kept d20s only; ranked by nat 20s − nat 1s, then by the rate difference.
+        naturals: ranked(all
           .filter((r) => r.kept?.count)
-          .map((r) => ({
-            user: r.user,
-            count: r.kept.count,
-            n20: r.kept.max,
-            n1: r.kept.min,
-            n20Rate: r.kept.max / r.kept.count,
-            n1Rate: r.kept.min / r.kept.count,
-          }))
-          .sort(byDesc((r) => r.n20)),
+          .map((r) => {
+            const n20Rate = r.kept.max / r.kept.count;
+            const n1Rate = r.kept.min / r.kept.count;
+            return {
+              user: r.user,
+              count: r.kept.count,
+              n20: r.kept.max,
+              n1: r.kept.min,
+              n20Rate,
+              n1Rate,
+              luck: r.kept.max - r.kept.min,
+              luckRate: n20Rate - n1Rate,
+            };
+          })
+          .sort((a, b) => b.luck - a.luck || b.luckRate - a.luckRate)),
       };
     };
 
@@ -202,7 +212,8 @@ registerReport({
   id: "attacks",
   label: "PF1_ROLL_STATISTICS.Report.Attacks",
   multiActor: true,
-  params: { actorClasses: ["pc"] },
+  // byAction false merges an item's actions into one row.
+  params: { actorClasses: ["pc"], byAction: true },
   compute(events, ctx, p) {
     const wanted = new Set(p.actorClasses ?? []);
     const classes = classifyActors(events);
@@ -211,8 +222,9 @@ registerReport({
       ctx,
       filter: (e) => e.a && ATTACK_CATEGORIES.has(e.c) && wanted.has(classes.get(e.a)),
       groupBy: (e) => {
-        const key = `${e.a}|${e.it?.n ?? ""}|${e.it?.an ?? ""}`;
-        if (!items.has(key)) items.set(key, { name: e.it?.n ?? null, action: e.it?.an ?? null, actionType: e.it?.at ?? null });
+        const action = p.byAction === false ? null : (e.it?.an ?? null);
+        const key = `${e.a}|${e.it?.n ?? ""}|${action ?? ""}`;
+        if (!items.has(key)) items.set(key, { name: e.it?.n ?? null, action, actionType: action ? (e.it?.at ?? null) : null });
         return key;
       },
       metrics: {
@@ -227,7 +239,7 @@ registerReport({
         healing: { metric: "total", filter: is("healing") },
       },
     });
-    return { actorClasses: [...wanted], actors: sectionsByActor(rows, items, classes, byDesc((r) => r.attacks)) };
+    return { actorClasses: [...wanted], byAction: p.byAction !== false, actors: sectionsByActor(rows, items, classes, byDesc((r) => r.attacks)) };
   },
 });
 

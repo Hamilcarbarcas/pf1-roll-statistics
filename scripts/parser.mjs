@@ -200,24 +200,62 @@ export function parseMessage(msg) {
 /*  pf1-roll-requests  §2.3                     */
 /* -------------------------------------------- */
 
+/** Short stable hash of a string (djb2), for ids built from content. */
+function hash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/** First non-GM user whose character this is, else a non-GM owner, else a GM. */
+function likelyRoller(actorId) {
+  const actor = game.actors.get(actorId);
+  const players = game.users.filter((u) => !u.isGM);
+  const user = players.find((u) => u.character?.id === actorId)
+    ?? players.find((u) => actor?.testUserPermission(u, "OWNER"))
+    ?? game.users.find((u) => u.isGM);
+  return user?.id ?? null;
+}
+
 /**
- * Stamped result entries anywhere in a request card's flags, keyed by stamp id.
- * Walks the whole tree so embedded requests are found without knowing the layout.
+ * Result entries anywhere in a request card's flags, keyed by identity. Walks the whole tree so
+ * embedded requests are found without knowing the layout.
+ *
+ * Stamped entries (`stats`) are keyed by their stamp id. Unstamped ones — rolled before the stamp
+ * existed, or by an older pf1-roll-requests — are keyed by their place in the flags (a repick
+ * overwrites the same place), with check, DC and roller worked out from the enclosing request.
+ * Results pulled in from another card (`applied`) were counted on that card and are skipped. §2.3
  * @param {ChatMessage} msg
- * @returns {Map<string, object>}
+ * @returns {Map<string, {entry: object, stats: object}>}
  */
 export function rollRequestEntries(msg) {
   const found = new Map();
-  const walk = (node) => {
+  const walk = (node, path, scope, aid) => {
     if (!node || typeof node !== "object") return;
-    if (node.stats?.id && node.rollData) {
-      found.set(node.stats.id, node);
+    if (node.request && typeof node.request === "object") scope = node;
+    if (node.rollData && (node.actorId || node.tokenId)) {
+      if (node.stats?.id) found.set(node.stats.id, { entry: node, stats: node.stats });
+      else if (!node.applied) found.set(`l-${hash(path)}`, { entry: node, stats: legacyStats(node, scope, aid) });
       return;
     }
-    for (const v of Object.values(node)) walk(v);
+    for (const [k, v] of Object.entries(node)) walk(v, `${path}.${k}`, scope, aid || k === "aidResults" || k === "actorAidResults");
   };
-  walk(msg.flags?.[ROLL_REQUESTS_ID]);
+  walk(msg.flags?.[ROLL_REQUESTS_ID], "", null, false);
   return found;
+}
+
+function legacyStats(entry, scope, aid) {
+  const override = scope?.targetedActors?.find?.((t) => t.id === entry.resultKey)?.check;
+  const request = override ?? scope?.request ?? {};
+  const dc = aid ? 10 : scope?.dc;
+  return {
+    userId: likelyRoller(entry.actorId),
+    time: null,
+    type: request.type ?? null,
+    key: request.key ?? null,
+    dc: Number.isFinite(dc) ? dc : null,
+    legacy: true,
+  };
 }
 
 /** Event id for a roll-request entry. */
@@ -225,8 +263,7 @@ export function rollRequestEventId(messageId, stampId) {
   return `${messageId}:rr:${stampId}`;
 }
 
-function parseRollRequestEntry(msg, entry) {
-  const s = entry.stats;
+function parseRollRequestEntry(msg, id, entry, s) {
   const facts = rollFacts(toRoll(entry.rollData));
   if (!facts || !s.userId) return null;
   const base = baseFields(msg.id, s.time ?? msg.timestamp, s.userId, entry.actorId, entry.tokenId);
@@ -237,18 +274,18 @@ function parseRollRequestEntry(msg, entry) {
   const extra = {};
   if (cat.k) extra.k = cat.k;
   if (Number.isFinite(s.dc)) extra.dc = s.dc;
-  return makeEvent(base, rollRequestEventId(msg.id, s.id), cat.c, facts, extra);
+  return makeEvent(base, rollRequestEventId(msg.id, id), cat.c, facts, extra);
 }
 
 /**
- * Events for every stamped roll-request result on a card.
+ * Events for every roll-request result on a card.
  * @param {ChatMessage} msg
  * @returns {object[]}
  */
 export function parseRollRequestCard(msg) {
   const events = [];
-  for (const entry of rollRequestEntries(msg).values()) {
-    const e = parseRollRequestEntry(msg, entry);
+  for (const [id, { entry, stats }] of rollRequestEntries(msg)) {
+    const e = parseRollRequestEntry(msg, id, entry, stats);
     if (e) events.push(e);
   }
   return events;

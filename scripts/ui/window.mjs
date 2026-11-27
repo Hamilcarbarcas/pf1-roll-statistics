@@ -4,7 +4,7 @@ import { getReport, listReports, runReport } from "../reports.mjs";
 import { dayKey } from "../settings.mjs";
 import { actorFilter, canSee, getVisibility, setVisibility, VISIBILITY } from "../visibility.mjs";
 import { ACTOR_CLASSES } from "../actor-class.mjs";
-import { renderReport, scopeLabel, userName } from "./render.mjs";
+import { formatDay, renderReport, scopeLabel, userName } from "./render.mjs";
 
 /**
  * Roll Statistics window. §6.4
@@ -165,10 +165,15 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
     if (scope.type === "day") {
       const days = (await listDays()).reverse();
       if (days.length) {
-        out.push(`<select name="day">${days.map((d) => option(d, d, d === scope.day)).join("")}</select>`);
+        out.push(`<select name="day">${days.map((d) => option(d, formatDay(d), d === scope.day)).join("")}</select>`);
       }
     } else if (scope.type === "last") {
       out.push(`<input type="number" name="lastN" min="1" step="1" value="${scope.n ?? 3}">`);
+    }
+
+    if (def.id === "attacks") {
+      out.push(`<label class="prs-check"><input type="checkbox" name="byAction"${params.byAction === false ? "" : " checked"}>
+        ${esc(L("Control.ShowActions"))}</label>`);
     }
 
     if (def.multiActor) {
@@ -223,6 +228,9 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
         params.lastN = Math.max(1, Math.floor(Number(el.value) || 1));
         params.scope = { type: "last", n: params.lastN };
         this.#histogram = null;
+        break;
+      case "byAction":
+        params.byAction = el.checked;
         break;
       case "actorClass":
         params.actorClasses = [...this.element.querySelectorAll('input[name="actorClass"]:checked')].map((i) => i.value);

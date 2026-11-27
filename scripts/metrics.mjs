@@ -69,12 +69,13 @@ registerMetric("dice", {
   },
 });
 
-/** Normalised luck over every die: each result scaled to −1 (a 1) … +1 (max face). §6.3 */
+/** Normalised luck: each die result scaled to −1 (a 1) … +1 (max face). opts.activeOnly drops discarded dice. §6.3 */
 registerMetric("luck", {
   init: () => ({ count: 0, sum: 0, variance: 0 }),
-  add(acc, e) {
-    for (const [faces, result] of e.d ?? []) {
+  add(acc, e, _ctx, opts = {}) {
+    for (const [faces, result, active] of e.d ?? []) {
       if (faces < 2) continue;
+      if (opts.activeOnly && !active) continue;
       acc.count++;
       acc.sum += (result - (faces + 1) / 2) / ((faces - 1) / 2);
       // Variance of one normalised result: ((n² − 1) / 12) / ((n − 1) / 2)² = (n + 1) / (3(n − 1)).

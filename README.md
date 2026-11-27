@@ -33,7 +33,9 @@ sessions, or the whole campaign.
 - Attacks, crit confirmations, damage and healing, with the item that made them.
 - Skill checks, saves, ability checks, initiative, caster level and concentration checks.
 - Plain dice rolls from chat and macros.
-- Rolls made on [PF1 Roll Requests](https://github.com/Hamilcarbarcas/pf1-roll-requests) cards.
+- Rolls made on [PF1 Roll Requests](https://github.com/Hamilcarbarcas/pf1-roll-requests) cards. With
+  an older version of Roll Requests, a roll is credited to the character's player (or the GM for
+  creatures no player owns), since the card doesn't record who clicked.
 
 The GM's client does the recording, so a GM needs to be logged in. Rolls made while no GM is
 connected are picked up from the chat log the next time one logs in.
@@ -76,11 +78,14 @@ Click a number to see how often each face came up.
 
 Who was lucky and who wasn't:
 
-- **d20 luck** ranks players by their average d20.
-- **All-dice luck** ranks players by how high they rolled on every die. Each die counts the same,
-  so a 6 on a d6 is as lucky as a 20 on a d20.
-- **Natural 20s and 1s** counts each player's natural 20s and 1s. Only the die that was kept
-  counts; the dropped die of a roll-twice doesn't.
+- **d20 luck** ranks players by how high they rolled on their d20s, from −100% (all 1s) to +100%
+  (all 20s).
+- **All-dice luck** does the same across every die. Each die counts the same, so a 6 on a d6 is
+  as lucky as a 20 on a d20.
+- **Critical luck** ranks players by natural 20s minus natural 1s, shown as a count and as a
+  share of their d20s.
+
+All three count only the dice that were kept. The dropped die of a roll-twice doesn't count.
 
 The GM is listed separately and isn't ranked against the players.
 
