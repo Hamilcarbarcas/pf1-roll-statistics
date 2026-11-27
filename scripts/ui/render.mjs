@@ -94,7 +94,8 @@ const empty = () => `<p class="prs-empty">${esc(L("Empty"))}</p>`;
 function tableBodies(playerRows, gmRows, cols) {
   if (!playerRows.length && !gmRows.length) return `<tbody><tr><td colspan="${cols}">${DASH}</td></tr></tbody>`;
   const players = playerRows.length ? `<tbody>${playerRows.join("")}</tbody>` : "";
-  const gm = gmRows.length ? `<tbody class="prs-gm">${gmRows.join("")}</tbody>` : "";
+  const gap = playerRows.length ? `<tr class="prs-gap"><td colspan="${cols}"></td></tr>` : "";
+  const gm = gmRows.length ? `<tbody class="prs-gm">${gap}${gmRows.join("")}</tbody>` : "";
   return players + gm;
 }
 
@@ -228,25 +229,34 @@ function renderFortune(result) {
 /* -------------------------------------------- */
 
 /**
- * One table for all actors: a single header row (sticky while scrolling), a heading row per actor
- * class (actors arrive sorted by class), then per actor a name row and its rows.
+ * One table for all actors. Per actor class (actors arrive sorted by class): a heading row, then the
+ * column header row, then each actor's rows with the actor name in a left-hand cell spanning them.
+ * A colgroup fixes the widths, since the first row of each section is a full-width heading.
  */
 function actorTable(actors, labels, row) {
-  const cols = labels.length;
+  const cols = labels.length + 1;
+  const colgroup = `<colgroup><col class="prs-col-actor"><col class="prs-col-item">${"<col>".repeat(labels.length - 1)}</colgroup>`;
+  const columnHead = `<tr class="prs-col-head"><th class="prs-name">${esc(L("Col.Actor"))}</th>${labels
+    .map((h, i) => `<th${i === 0 ? ' class="prs-name"' : ""}>${esc(h)}</th>`)
+    .join("")}</tr>`;
+
   let lastClass = null;
   const bodies = actors
     .map((a) => {
-      let classHead = "";
+      let head = "";
       if (a.class !== lastClass) {
         lastClass = a.class;
-        classHead = `<tbody class="prs-class"><tr class="prs-class-row"><th colspan="${cols}">${esc(L(`ActorClass.${a.class}`))}</th></tr></tbody>`;
+        head = `<tbody class="prs-class"><tr class="prs-class-row"><th colspan="${cols}">${esc(L(`ActorClass.${a.class}`))}</th></tr>${columnHead}</tbody>`;
       }
-      return `${classHead}<tbody class="prs-actor">
-    <tr class="prs-actor-row"><th colspan="${cols}">${esc(actorName(a.actorId))}</th></tr>
-    ${a.rows.map((r) => row(r, a)).join("")}</tbody>`;
+      const nameCell = `<th class="prs-actor-cell" rowspan="${a.rows.length}">${esc(actorName(a.actorId))}</th>`;
+      const rows = a.rows.map((x, i) => {
+        const html = row(x, a);
+        return i === 0 ? html.replace(/^<tr>/, `<tr class="prs-actor-first">${nameCell}`) : html;
+      });
+      return `${head}<tbody class="prs-actor">${rows.join("")}</tbody>`;
     })
     .join("");
-  return `<table class="prs-table prs-fixed prs-sections">${headerRow(labels)}${bodies}</table>`;
+  return `<table class="prs-table prs-fixed prs-sections">${colgroup}${bodies}</table>`;
 }
 
 function headerRow(labels) {

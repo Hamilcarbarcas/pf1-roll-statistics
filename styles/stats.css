@@ -154,9 +154,22 @@
   background: var(--prs-accent);
 }
 
-/* GM rows: their own section, set off from the players by a double rule. */
-.pf1-roll-statistics .prs-table tbody.prs-gm > tr:first-child > * {
-  border-top: 3px double color-mix(in srgb, currentColor 40%, transparent);
+/* GM rows: their own section, set off from the players by a gap, a heavy rule and a tint. */
+.pf1-roll-statistics .prs-table tr.prs-gap,
+.pf1-roll-statistics .prs-table tr.prs-gap > td {
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.pf1-roll-statistics .prs-table tbody.prs-gm > tr:not(.prs-gap) > * {
+  background-color: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.pf1-roll-statistics .prs-table tbody.prs-gm > tr:not(.prs-gap):first-of-type > *,
+.pf1-roll-statistics .prs-table tbody.prs-gm > tr.prs-gap + tr > * {
+  border-top: 2px solid color-mix(in srgb, currentColor 50%, transparent);
 }
 
 .pf1-roll-statistics .prs-empty,
@@ -250,41 +263,48 @@
 }
 
 /* Per-actor sections: fixed layout so every actor's table has the same column widths. */
-/* Multi-actor table: one sticky header, a full-width heading row per actor. */
-.pf1-roll-statistics .prs-sections thead th {
-  position: sticky;
-  top: -10px; /* .prs-body padding */
-  z-index: 1;
-  background: var(--color-cool-5, #1f1f24);
+/* Multi-actor table: per class a heading, a column header row, then actor rows. */
+.pf1-roll-statistics .prs-sections col.prs-col-actor {
+  width: 15%;
 }
 
-/* Actor-class heading: the strongest break in the table. */
+.pf1-roll-statistics .prs-sections col.prs-col-item {
+  width: 22%;
+}
+
 .pf1-roll-statistics .prs-table tr.prs-class-row > th {
-  padding: 8px 8px 4px;
-  font-size: 1.15em;
+  padding: 10px 8px 6px;
+  font-size: 1.35em;
   font-weight: bold;
   text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   border-left: none;
   border-bottom: 2px solid color-mix(in srgb, currentColor 50%, transparent);
-  background: var(--prs-accent);
+  background: none;
 }
 
 .pf1-roll-statistics .prs-table tbody.prs-class:not(:first-of-type) tr.prs-class-row > th {
-  border-top: 12px solid transparent;
-  background-clip: padding-box;
+  padding-top: 22px;
 }
 
-/* Actor name row within a class. */
-.pf1-roll-statistics .prs-table tr.prs-actor-row > th {
-  padding-top: 10px;
-  font-size: 1.05em;
+.pf1-roll-statistics .prs-table tr.prs-col-head > th {
   font-weight: bold;
+  border-bottom: 2px solid var(--prs-line);
+  background: var(--prs-accent);
+}
+
+.pf1-roll-statistics .prs-table th.prs-actor-cell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
   text-align: left;
-  border-left: none;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  background: none;
+  font-weight: bold;
+}
+
+/* A firmer line where one actor's rows end and the next begin. */
+.pf1-roll-statistics .prs-table tr.prs-actor-first > * {
+  border-top: 1px solid color-mix(in srgb, currentColor 35%, transparent);
 }
 
 /* Column rules; the percent half of a count/percent pair stays joined to its count. */
