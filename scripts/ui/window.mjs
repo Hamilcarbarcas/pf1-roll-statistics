@@ -58,7 +58,7 @@ export class StatsWindow extends HandlebarsApplicationMixin(ApplicationV2) {
     id: WINDOW_ID,
     classes: ["pf1-roll-statistics"],
     window: { title: "PF1_ROLL_STATISTICS.Title", icon: "fa-solid fa-chart-simple", resizable: true },
-    position: { width: 980, height: 640 },
+    position: { width: 1300, height: 850 },
     actions: {
       selectReport: StatsWindow.#onSelectReport,
       refresh: StatsWindow.#onRefresh,

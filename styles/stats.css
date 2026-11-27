@@ -193,9 +193,14 @@
   gap: 16px;
 }
 
+/* Flex bases are wrap thresholds: a table joins the row only when it gets this much width. */
 .pf1-roll-statistics .prs-fortune-part {
-  flex: 1 1 280px;
+  flex: 1 1 360px;
   min-width: 0;
+}
+
+.pf1-roll-statistics .prs-fortune-part.prs-fortune-wide {
+  flex-basis: 600px;
 }
 
 .pf1-roll-statistics .prs-fortune-part h3,

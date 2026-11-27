@@ -171,13 +171,13 @@ function renderFortune(result) {
   if (!hasAny(players) && !hasAny(gm)) return empty();
 
   // Header cells: { label (HTML), cls?, span? }. A span of 2 sits over a count/percent sub-cell pair.
-  const table = (title, head, side, rowFn) => {
+  const table = (title, head, side, rowFn, cls = "") => {
     const cols = head.reduce((sum, h) => sum + (h.span ?? 1), 0);
     const bodies = tableBodies(side(players).map((x) => rowFn(x, true)), side(gm).map((x) => rowFn(x, false)), cols);
     const ths = head
       .map((h) => `<th${h.cls ? ` class="${h.cls}"` : ""}${h.span ? ` colspan="${h.span}"` : ""}>${h.label}</th>`)
       .join("");
-    return `<section class="prs-fortune-part"><h3>${esc(L(title))}</h3>
+    return `<section class="prs-fortune-part ${cls}"><h3>${esc(L(title))}</h3>
       <table class="prs-table prs-fixed"><thead><tr>${ths}</tr></thead>
       ${bodies}</table></section>`;
   };
@@ -220,6 +220,7 @@ function renderFortune(result) {
       <td class="prs-num">${x.n20}</td><td class="prs-num prs-sub">${pct(x.n20Rate, 0)}</td>
       <td class="prs-num">${x.n1}</td><td class="prs-num prs-sub">${pct(x.n1Rate, 0)}</td>
       <td class="prs-num">${x.count}</td></tr>`,
+    "prs-fortune-wide",
   );
   return `<div class="prs-fortune">${d20}${luck}${crit}</div>`;
 }
